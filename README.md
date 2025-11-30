@@ -2,16 +2,55 @@
 
 
 ## Used
-- PHP 8.5
-- MySQL
-- Redis
-- PHPUnit
+PHP 8.5, MySQL for db, Redis for cache, PHPUnit for sequential testing testing + bash script for parallel testing.
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/products/{id}` | Get product details |
+| `POST` | `/api/holds` | Create inventory hold |
+| `POST` | `/api/orders` | Convert hold to order |
+| `POST` | `/api/payments/webhook` | Handle payment webhook |
+
+## Assumptions and Invariants
+
+### Core Invariants
+
+- The system guarantees that stock is never sold beyond availability.
+
+- All stock modifications use database-level locking (`lockForUpdate()`) combined with Redis distributed locks to prevent race conditions under concurrent access.
+
+- A hold can only be converted to an order once. Once converted, the hold is deleted atomically within the same transaction.
+
+- Each webhook is uniquely identified by its `idempotency_key`. Duplicate webhooks with the same key return success without reprocessing, preventing double stock restoration or double payment confirmation.
+
+- Orders follow a strict state progression:
+   - `pending` → `paid` (on successful payment)
+   - `pending` → `cancelled` (on failed payment)
+   - Terminal states (`paid`, `cancelled`) cannot be changed.
+
+### Assumptions
+
+- Each hold and order is associated with exactly one product. Multi-product carts are not supported in this implementation.
+
+- Holds expire after **2 minutes**. A background job (`holds:release-expired`) runs periodically to restore stock from expired holds.
+
+- Webhooks may arrive before orders are created. The system handles this by storing pending webhooks and processing them when the order is created.
+
+- The system relies on Redis for distributed locking. If Redis is unavailable, concurrent operations may fail or timeout.
+
+- The expired holds cleanup job uses a lock to prevent concurrent runs, ensuring stock is not restored multiple times.
+
+## Product Purchase Flow
+This is a diagram I made to illustrate the different scenarios that happen when the user attempts to go through the product purchase process 
+
+![](./assets/Product%20Purchase%20Flow.png)
 
 ## Running and Testing the Application
 
 ### Quick Setup
 ```bash
-# Clone and install
 git clone https://github.com/r6mez/Flash-Sale-Task
 cd Flash-Sale-Task
 composer setup
@@ -34,6 +73,9 @@ composer dev
 This runs concurrently:
 - Laravel server at `http://localhost:8000`
 - Queue worker for clearning expired holds background job.
+
+### Accessing the Documentation
+After starting the development server visit http://localhost:8000/api/documentation to view SwaggerUI docs.
 
 ### Where to see logs/metrics
 run:
@@ -87,13 +129,3 @@ TEST PASSED: No overselling detected!
    Expected 100 successes, got 100
    Expected 100 failures, got 100
 ```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/products/{id}` | Get product details |
-| `POST` | `/api/holds` | Create inventory hold |
-| `POST` | `/api/orders` | Convert hold to order |
-| `POST` | `/api/payments/webhook` | Handle payment webhook |
-
