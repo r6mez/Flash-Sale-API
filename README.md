@@ -2,7 +2,7 @@
 
 
 ## Used
-PHP 8.5, MySQL for db, Redis for cache, PHPUnit for sequential testing testing + bash script for parallel testing.
+PHP 8.5, Laravel 12, MySQL for db, Redis for cache, PHPUnit for sequential testing testing + bash script for parallel testing.
 
 ## API Endpoints
 

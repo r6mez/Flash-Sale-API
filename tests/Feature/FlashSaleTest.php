@@ -68,7 +68,7 @@ class FlashSaleTest extends TestCase
                 'qty' => 2,
             ]);
             $response->assertStatus(201);
-            $holdIds[] = $response->json('data.hold');
+            $holdIds[] = $response->json('data.hold_id');
         }
 
         // Stock should be reduced by 8 (4 holds * 2 qty)
@@ -101,7 +101,7 @@ class FlashSaleTest extends TestCase
             'qty' => 1,
         ]);
 
-        $hold_id = $holdResponse->json('data.hold');
+        $hold_id = $holdResponse->json('data.hold_id');
 
         $orderResponse = $this->postJson('/api/orders', [
             'hold_id' => $hold_id,
@@ -149,7 +149,7 @@ class FlashSaleTest extends TestCase
             'qty' => 2,
         ]);
 
-        $hold_id = $holdResponse->json('data.hold');
+        $hold_id = $holdResponse->json('data.hold_id');
 
         $orderResponse = $this->postJson('/api/orders', [
             'hold_id' => $hold_id,
@@ -200,7 +200,7 @@ class FlashSaleTest extends TestCase
         ]);
 
         $holdResponse->assertStatus(201);
-        $hold_id = $holdResponse->json('data.hold');
+        $hold_id = $holdResponse->json('data.hold_id');
 
         $product->refresh();
         $this->assertEquals(9, $product->stock);
@@ -257,8 +257,8 @@ class FlashSaleTest extends TestCase
         ]);
 
         $holdResponse->assertStatus(201);
-        $hold_id = $holdResponse->json('data.hold');
-        $this->assertNotNull($holdResponse->json('data.expire_at'));
+        $hold_id = $holdResponse->json('data.hold_id');
+        $this->assertNotNull($holdResponse->json('data.expires_at'));
 
         // Verify stock reduced
         $product->refresh();
@@ -305,7 +305,7 @@ class FlashSaleTest extends TestCase
             'qty' => 2,
         ]);
 
-        $hold_id = $holdResponse->json('data.hold');
+        $hold_id = $holdResponse->json('data.hold_id');
 
         // Verify stock reduced
         $product->refresh();
@@ -349,7 +349,7 @@ class FlashSaleTest extends TestCase
             'qty' => 1,
         ]);
 
-        $hold_id = $holdResponse->json('data.hold');
+        $hold_id = $holdResponse->json('data.hold_id');
 
         Hold::where('id', $hold_id)->update(['expire_at' => now()->subMinutes(5)]);
 

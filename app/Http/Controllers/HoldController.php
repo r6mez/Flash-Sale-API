@@ -68,7 +68,7 @@ class HoldController extends Controller
                 'expires_at' => $hold->expire_at->toIso8601String(),
             ]);
 
-            return response()->json(['data' => ["hold" => $hold->id, "expire_at" => $hold->expire_at]], 201);
+            return response()->json(['data' => ["hold_id" => $hold->id, "expires_at" => $hold->expire_at]], 201);
         });
     }
 }
