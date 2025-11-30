@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignIdFor(Product::class);
             $table->unsignedInteger("qty");
             $table->timestamp("expire_at")->index();
-            $table->timestamp("converted_at")->nullable();
             $table->timestamps();
         });
     }

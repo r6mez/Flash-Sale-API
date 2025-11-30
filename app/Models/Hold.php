@@ -10,12 +10,10 @@ class Hold extends Model
         'product_id',
         'qty',
         'expire_at',
-        'converted_at',
     ];
 
     protected $casts = [
         'expire_at' => 'datetime',
-        'converted_at' => 'datetime',
     ];
 
     public function product()

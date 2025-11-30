@@ -105,18 +105,24 @@ class WebhookController extends Controller
         });
     }
 
-    /**
-     * Record the webhook for idempotency tracking.
-     */
     private function recordWebhook(string $idempotencyKey, array $payload, string $status): Webhook
     {
-        return Webhook::updateOrCreate(
-            ['idempotency_key' => $idempotencyKey],
-            [
+        $webhook = Webhook::where('idempotency_key', $idempotencyKey)->first();
+        
+        if ($webhook) {
+            $webhook->update([
                 'payload' => $payload,
                 'status' => $status,
-                'attempts' => DB::raw('attempts + 1'),
-            ]
-        );
+                'attempts' => $webhook->attempts + 1,
+            ]);
+            return $webhook;
+        }
+        
+        return Webhook::create([
+            'idempotency_key' => $idempotencyKey,
+            'payload' => $payload,
+            'status' => $status,
+            'attempts' => 1,
+        ]);
     }
 }

@@ -20,7 +20,7 @@ class ReleaseExpiredHolds extends Command
         foreach ($expiredHolds as $hold) {
             DB::transaction(function () use ($hold) {
                 Product::where('id', $hold->product_id)
-                    ->increment('available_qty', $hold->qty);
+                    ->increment('stock', $hold->qty);
                 
                 $hold->delete();
             });
