@@ -8,6 +8,7 @@ use App\Models\Webhook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
@@ -23,11 +24,28 @@ class WebhookController extends Controller
         $orderId = $request->input('order_id');
         $paymentStatus = $request->input('status');
 
-        return Cache::lock("webhook:{$idempotencyKey}", 10)->block(10, function () use ($idempotencyKey, $orderId, $paymentStatus) {
+        $lockAcquiredAt = microtime(true);
+        
+        return Cache::lock("webhook:{$idempotencyKey}", 10)->block(10, function () use ($idempotencyKey, $orderId, $paymentStatus, $lockAcquiredAt) {
+            $lockWaitTime = round((microtime(true) - $lockAcquiredAt) * 1000, 2);
+            
+            if ($lockWaitTime > 100) {
+                Log::warning('Webhook lock contention detected', [
+                    'idempotency_key' => $idempotencyKey,
+                    'order_id' => $orderId,
+                    'lock_wait_ms' => $lockWaitTime,
+                ]);
+            }
+            
             return DB::transaction(function () use ($idempotencyKey, $orderId, $paymentStatus) {
                 $existingWebhook = Webhook::where('idempotency_key', $idempotencyKey)->first();
 
                 if ($existingWebhook && $existingWebhook->status === 'processed') {
+                    Log::info('Webhook deduplicated - already processed', [
+                        'idempotency_key' => $idempotencyKey,
+                        'order_id' => $orderId,
+                        'attempts' => $existingWebhook->attempts,
+                    ]);
                     return response()->json([
                         'message' => 'Webhook already processed',
                         'idempotency_key' => $idempotencyKey,
@@ -38,6 +56,12 @@ class WebhookController extends Controller
 
                 if (!$order) {
                     // webhook arrived before order was created
+                    Log::warning('Webhook arrived before order creation - queued for retry', [
+                        'idempotency_key' => $idempotencyKey,
+                        'order_id' => $orderId,
+                        'payment_status' => $paymentStatus,
+                    ]);
+                    
                     $this->recordWebhook($idempotencyKey, [
                         'order_id' => $orderId,
                         'status' => $paymentStatus,
@@ -66,6 +90,13 @@ class WebhookController extends Controller
                     $order->status = 'paid';
                     $order->save();
 
+                    Log::info('Payment successful - order paid', [
+                        'idempotency_key' => $idempotencyKey,
+                        'order_id' => $order->id,
+                        'product_id' => $order->product_id,
+                        'amount_cents' => $order->amount_cents,
+                    ]);
+
                     $this->recordWebhook($idempotencyKey, [
                         'order_id' => $orderId,
                         'status' => $paymentStatus,
@@ -87,6 +118,14 @@ class WebhookController extends Controller
                         $product->stock += $order->qty;
                         $product->save();
                         Cache::forget("product:{$product->id}");
+                        
+                        Log::info('Payment failed - stock restored', [
+                            'idempotency_key' => $idempotencyKey,
+                            'order_id' => $order->id,
+                            'product_id' => $product->id,
+                            'qty_restored' => $order->qty,
+                            'new_stock' => $product->stock,
+                        ]);
                     }
 
                     $this->recordWebhook($idempotencyKey, [

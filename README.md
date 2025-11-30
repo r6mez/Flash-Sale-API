@@ -4,10 +4,10 @@
 ## Used
 - PHP 8.5
 - MySQL
-- Radis
+- Redis
 - PHPUnit
 
-## Running the Application
+## Running and Testing the Application
 
 ### Quick Setup
 ```bash
@@ -34,12 +34,16 @@ composer dev
 This runs concurrently:
 - Laravel server at `http://localhost:8000`
 - Queue worker for clearning expired holds background job.
-- Log viewer with `artisan pail`
+
+### Where to see logs/metrics
+run:
+```bash
+php artisan pail
+```
 
 ### Running Tests
-
+directly with PHPUnit (for sequential tests):
 ```bash
-# directly with PHPUnit
 php artisan test
 ```
 
@@ -53,6 +57,36 @@ The test suite covers:
 - Failed purchase flow (hold → order → cancelled)
 - Expired hold rejection
 
+Or by the bash script I wrote to simulate parallel requests for holds
+make sure first you clear the database, run the seeders, then run the script
+this can be done with the following commands:
+
+```bash
+php artisan migrate:rollback
+php artisan migrate
+php artisan db:seed
+./tests/scripts/parallel_holds_test.sh 1 100 200
+```
+
+you should get a result like this:
+```bash
+=== Parallel Holds Concurrency Test ===
+Base URL: http://127.0.0.1:8000
+Product ID: 1
+Expected Stock: 100
+Concurrent Requests: 200
+
+Launching 200 concurrent requests...
+All requests completed. Analyzing results...
+
+=== Results ===
+Successful holds (201): 100
+Rejected - out of stock (409): 100
+
+TEST PASSED: No overselling detected!
+   Expected 100 successes, got 100
+   Expected 100 failures, got 100
+```
 
 ## API Endpoints
 

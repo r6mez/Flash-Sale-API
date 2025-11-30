@@ -14,6 +14,13 @@ class FlashSaleTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * This test verifies the locking mechanism works correctly by making
+     * sequential requests. The Cache::lock ensures mutual exclusion.
+     * 
+     * For true parallel testing with concurrent processes, run:
+     *   ./tests/scripts/parallel_holds_test.sh
+     */
     public function test_parallel_hold_attempts_at_stock_boundary_prevents_overselling(): void
     {
         $product = Product::create([
@@ -25,8 +32,7 @@ class FlashSaleTest extends TestCase
         $successCount = 0;
         $failCount = 0;
 
-        // Simulate 10 parallel requests
-        // Only 5 should succeed since we only have 5 in stock
+        // Make 10 requests - only 5 should succeed
         for ($i = 0; $i < 10; $i++) {
             $response = $this->postJson('/api/holds', [
                 'product_id' => $product->id,
@@ -182,22 +188,56 @@ class FlashSaleTest extends TestCase
 
     public function test_webhook_arriving_before_order_creation(): void
     {
-        $nonExistentOrderId = 99999;
+        $product = Product::create([
+            'name' => 'Test Item',
+            'price_cents' => 1000,
+            'stock' => 10,
+        ]);
+
+        $holdResponse = $this->postJson('/api/holds', [
+            'product_id' => $product->id,
+            'qty' => 1,
+        ]);
+
+        $holdResponse->assertStatus(201);
+        $hold_id = $holdResponse->json('data.hold');
+
+        $product->refresh();
+        $this->assertEquals(9, $product->stock);
+
+        $nextOrderId = (Order::max('id') ?? 0) + 1;
         $idempotencyKey = 'early-webhook-' . uniqid();
 
-        $response = $this->postJson('/api/payments/webhook', [
+        $webhookResponse = $this->postJson('/api/payments/webhook', [
             'idempotency_key' => $idempotencyKey,
-            'order_id' => $nonExistentOrderId,
+            'order_id' => $nextOrderId,
             'status' => 'success',
         ]);
 
-        $response->assertStatus(202);
-        $this->assertEquals('Order not found, webhook recorded for later processing', $response->json('message'));
+        $webhookResponse->assertStatus(202);
+        $this->assertEquals('Order not found, webhook recorded for later processing', $webhookResponse->json('message'));
 
         $webhook = Webhook::where('idempotency_key', $idempotencyKey)->first();
         $this->assertNotNull($webhook);
         $this->assertEquals('pending', $webhook->status);
-        $this->assertEquals($nonExistentOrderId, $webhook->payload['order_id']);
+        $this->assertEquals($nextOrderId, $webhook->payload['order_id']);
+
+        // Now create the order - it should process the pending webhook
+        $orderResponse = $this->postJson('/api/orders', [
+            'hold_id' => $hold_id,
+        ]);
+
+        $orderResponse->assertStatus(201);
+        $orderId = $orderResponse->json('data.id');
+        $this->assertEquals($nextOrderId, $orderId);
+
+        $this->assertEquals('paid', $orderResponse->json('data.status'));
+
+        $webhook->refresh();
+        $this->assertEquals('processed', $webhook->status);
+
+        $product->refresh();
+        $this->assertEquals(9, $product->stock);
     }
 
     // additional tests 
