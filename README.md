@@ -2,7 +2,7 @@
 
 
 ## Used
-PHP 8.5, Laravel 12, MySQL for db, Redis for cache, PHPUnit for sequential testing testing + bash script for parallel testing.
+PHP 8.5, Laravel 12, PostgreSQL for db, Redis for cache, PHPUnit for sequential testing testing + Shell Scripts for parallel testing.
 
 ## API Endpoints
 
@@ -49,15 +49,21 @@ This is a diagram I made to illustrate the different scenarios that happen when 
 
 ## Running and Testing the Application
 
-### Quick Setup
+### Clone the repo
 ```bash
 git clone https://github.com/r6mez/Flash-Sale-Task
 cd Flash-Sale-Task
-composer setup
 ```
 
-### env
-Copy `.env.example` into a `.env` file, and change MySQL configurations to meet yours.
+### Environment Varibles
+Copy `.env.example` into a `.env` file, and change postgres configurations to meet yours.
+
+### Setup
+Create a database called `flash_sale_api` or whatever name you put in the `.env` file then run
+
+```
+composer setup
+```
 
 ### Database Seeding
 ```bash
@@ -99,15 +105,19 @@ The test suite covers:
 - Failed purchase flow (hold → order → cancelled)
 - Expired hold rejection
 
-Or by the bash script I wrote to simulate parallel requests for holds
-make sure first you clear the database, run the seeders, then run the script
-this can be done with the following commands:
+Or by the shell script I wrote to simulate parallel requests for holds make sure first you clear the database, run the seeders, this can be done with the following commands:
 
-```bash
+```shell
 php artisan migrate:rollback
 php artisan migrate
 php artisan db:seed
-./tests/scripts/parallel_holds_test.sh 1 100 200
+```
+
+then run the script:
+
+```shell
+# args: [product_id] [stock] [requests] [sell_qty]
+./tests/scripts/parallel_holds_test.sh 1 100 10 50
 ```
 
 you should get a result like this:
@@ -116,16 +126,16 @@ you should get a result like this:
 Base URL: http://127.0.0.1:8000
 Product ID: 1
 Expected Stock: 100
-Concurrent Requests: 200
+Concurrent Requests: 10
 
-Launching 200 concurrent requests...
-All requests completed. Analyzing results...
+Launching 10 concurrent requests...
+All requests completed.
 
 === Results ===
-Successful holds (201): 100
-Rejected - out of stock (409): 100
+Successful holds (201): 2
+Rejected - out of stock (409): 8
 
+   Expected  successes, got 2
+   Expected 8 failures, got 8
 TEST PASSED: No overselling detected!
-   Expected 100 successes, got 100
-   Expected 100 failures, got 100
 ```

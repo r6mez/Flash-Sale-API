@@ -6,19 +6,20 @@
 #   2. Database seeded with a test product
 #
 # Usage:
-#   ./tests/scripts/parallel_holds_test.sh [product_id] [stock] [requests]
+#   ./tests/scripts/parallel_holds_test.sh [product_id] [stock] [requests] [sell_qty]
 
 set -e
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 PRODUCT_ID="${1:-1}"
-EXPECTED_STOCK="${2:-5}"
+STOCK="${2:-100}"
 NUM_REQUESTS="${3:-10}"
+SELL_QTY="${4:-50}"
 
 echo "=== Parallel Holds Concurrency Test ==="
 echo "Base URL: $BASE_URL"
 echo "Product ID: $PRODUCT_ID"
-echo "Expected Stock: $EXPECTED_STOCK"
+echo "Expected Stock: $STOCK"
 echo "Concurrent Requests: $NUM_REQUESTS"
 echo ""
 
@@ -35,7 +36,7 @@ for i in $(seq 1 $NUM_REQUESTS); do
             -X POST "$BASE_URL/api/holds" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "{\"product_id\": $PRODUCT_ID, \"qty\": 1}")
+            -d "{\"product_id\": $PRODUCT_ID, \"qty\": $SELL_QTY}")
         echo "$STATUS" > "$RESULT_DIR/result_$i.txt"
     ) &
 done
@@ -43,7 +44,7 @@ done
 # Wait for all background jobs to complete
 wait
 
-echo "All requests completed. Analyzing results..."
+echo "All requests completed."
 echo ""
 
 SUCCESS_COUNT=0
@@ -68,14 +69,14 @@ fi
 echo ""
 
 # Verify results
-if [ $SUCCESS_COUNT -eq $EXPECTED_STOCK ] && [ $FAIL_COUNT -eq $((NUM_REQUESTS - EXPECTED_STOCK)) ]; then
+EXPECTED_SUCCESS=$((STOCK / SELL_QTY))
+EXPECTED_FAILS=$((NUM_REQUESTS - EXPECTED_SUCCESS))
+echo "   Expected $EXPECTED_STOCK successes, got $SUCCESS_COUNT"
+echo "   Expected $EXPECTED_FAILS failures, got $FAIL_COUNT"
+if [ $SUCCESS_COUNT -eq $EXPECTED_SUCCESS ] && [ $FAIL_COUNT -eq $EXPECTED_FAILS ]; then
     echo "TEST PASSED: No overselling detected!"
-    echo "   Expected $EXPECTED_STOCK successes, got $SUCCESS_COUNT"
-    echo "   Expected $((NUM_REQUESTS - EXPECTED_STOCK)) failures, got $FAIL_COUNT"
     exit 0
 else
     echo "TEST FAILED: Possible overselling or lock contention issue!"
-    echo "   Expected $EXPECTED_STOCK successes, got $SUCCESS_COUNT"
-    echo "   Expected $((NUM_REQUESTS - EXPECTED_STOCK)) failures, got $FAIL_COUNT"
     exit 1
 fi
