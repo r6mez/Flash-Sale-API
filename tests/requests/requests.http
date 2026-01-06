@@ -1,0 +1,49 @@
+@host = http://127.0.0.1:8000
+@contentType = application/json
+
+### Get Product
+GET {{host}}/api/products/1
+Accept: {{contentType}}
+
+### Create Hold
+# @name createHold
+POST {{host}}/api/holds
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+    "product_id": 1,
+    "qty": 1
+}
+
+### Create Order
+# @name createOrder
+POST {{host}}/api/orders
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+    "hold_id": {{createHold.response.body.data.hold_id}}
+}
+
+### Payment Webhook (Success)
+POST {{host}}/api/payments/webhook
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+    "idempotency_key": "{{$guid}}",
+    "order_id": {{createOrder.response.body.data.id}},
+    "status": "success"
+}
+
+### Payment Webhook (Failure)
+POST {{host}}/api/payments/webhook
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+    "idempotency_key": "{{$guid}}",
+    "order_id": {{createOrder.response.body.data.id}},
+    "status": "failure"
+}
