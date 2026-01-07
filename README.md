@@ -13,37 +13,11 @@ PHP 8.5, Laravel 12, PostgreSQL for db, Redis for cache, PHPUnit for sequential 
 
 ## Assumptions and Invariants
 
-### Core Invariants
-
-- The system guarantees that stock is never sold beyond availability.
-
-- All stock modifications use database-level locking (`lockForUpdate()`) combined with Redis distributed locks to prevent race conditions under concurrent access.
-
-- A hold can only be converted to an order once. Once converted, the hold is deleted atomically within the same transaction.
-
-- Each webhook is uniquely identified by its `idempotency_key`. Duplicate webhooks with the same key return success without reprocessing, preventing double stock restoration or double payment confirmation.
-
-- Orders follow a strict state progression:
-   - `pending` → `paid` (on successful payment)
-   - `pending` → `cancelled` (on failed payment)
-   - Terminal states (`paid`, `cancelled`) cannot be changed.
-
-### Assumptions
-
-- Each hold and order is associated with exactly one product. Multi-product carts are not supported in this implementation.
-
-- Holds expire after **2 minutes**. A background job (`holds:release-expired`) runs periodically to restore stock from expired holds.
-
-- Webhooks may arrive before orders are created. The system handles this by storing pending webhooks and processing them when the order is created.
-
-- The system relies on Redis for distributed locking. If Redis is unavailable, concurrent operations may fail or timeout.
-
-- The expired holds cleanup job uses a lock to prevent concurrent runs, ensuring stock is not restored multiple times.
 
 ## Product Purchase Flow
 This is a diagram I made to illustrate the different scenarios that happen when the user attempts to go through the product purchase process 
 
-![](./assets/Product%20Purchase%20Flow.png)
+
 
 ## Running and Testing the Application
 

@@ -17,7 +17,13 @@ class WebhookController extends Controller
 
     public function handlePayment(Request $request)
     {
-        // die($request);
+        $signature = $request->header('X-Payment-Signature');
+        $expectedSignature = hash_hmac('sha256', $request->getContent(), config('services.payment.secret'));
+        
+        if (!hash_equals($expectedSignature, $signature ?? '')) {
+            return response()->json(['message' => 'Invalid signature'], 401);
+        }
+        
         $request->validate([
             'order_reference' => 'required|string',
             'status' => 'required|in:success,failure,processed',

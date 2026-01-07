@@ -35,4 +35,7 @@ return [
         ],
     ],
 
+    'payment' => [
+        'secret' => env('PAYMENT_SERVICE_SECRET'),
+    ],
 ];

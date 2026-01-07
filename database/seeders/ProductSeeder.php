@@ -15,13 +15,13 @@ class ProductSeeder extends Seeder
         $products = [
             [
                 'name' => 'Flash Sale Item 1',
-                'price_cents' => 9999,
-                'stock' => 100,
+                'price_cents' => 20000,
+                'stock' => 1000,
             ],
             [
                 'name' => 'Flash Sale Item 2',
-                'price_cents' => 4999,
-                'stock' => 50,
+                'price_cents' => 100,
+                'stock' => 500,
             ],
         ];
 

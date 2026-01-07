@@ -15,6 +15,9 @@ class ProcessOrderCreation implements ShouldQueue
 {
     use Queueable;
     
+    public $tries = 3;
+    public $backoff = [1, 5, 10];
+    
     public function __construct(public int $productId, public int $qty, public string $orderReference)
     {
         //        
@@ -64,5 +67,13 @@ class ProcessOrderCreation implements ShouldQueue
                 $webhook->update(['status' => 'processed']);
             }
         });
+    }
+    
+    public function failed(\Throwable $exception): void
+    {
+        app(RedisStockService::class)->incrementStock($this->productId, $this->qty);
+        Log::error("Order creation failed permanently for {$this->orderReference}", [
+            'exception' => $exception->getMessage()
+        ]);
     }
 }

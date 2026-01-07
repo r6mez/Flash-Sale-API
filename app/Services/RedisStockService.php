@@ -77,6 +77,12 @@ class RedisStockService
         return (int) (Redis::hget($key, 'stock') ?? 0);
     }
 
+    public function productExists(int $productId): bool
+    {
+        $key = self::PRODUCT_KEY_PREFIX . $productId;
+        return Redis::exists($key) === 1;
+    }
+
     public function initializeStock(Product $product): void
     {
         $key = self::PRODUCT_KEY_PREFIX . $product->id;
