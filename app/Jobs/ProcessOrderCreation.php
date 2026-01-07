@@ -57,6 +57,8 @@ class ProcessOrderCreation implements ShouldQueue
 
                 if ($paymentStatus === 'success') {
                     $order->update(['status' => 'paid']);
+                    $product->stock -= $this->qty;
+                    $product->save();
                     Log::info("QUEUE: Order {$this->orderReference} immediately updated to paid from pending webhook");
                 } else {
                     $order->update(['status' => 'cancelled']);

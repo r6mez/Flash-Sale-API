@@ -20,12 +20,26 @@ class OrderFlowIntegrationTest extends TestCase
         parent::setUp();
         $this->redisStockService = app(RedisStockService::class);
         Redis::flushall();
+        config(['services.payment.secret' => 'test-secret']);
     }
 
     protected function tearDown(): void
     {
         Redis::flushall();
         parent::tearDown();
+    }
+
+    private function sendWebhook(string $orderReference, string $status)
+    {
+        $payload = [
+            'order_reference' => $orderReference,
+            'status' => $status,
+        ];
+        $signature = hash_hmac('sha256', json_encode($payload), config('services.payment.secret'));
+        
+        return $this->postJson('/api/payments/webhook', $payload, [
+            'X-Payment-Signature' => $signature
+        ]);
     }
 
     public function test_complete_successful_order_flow(): void
@@ -68,10 +82,7 @@ class OrderFlowIntegrationTest extends TestCase
         $this->assertNotNull($order->amount_cents);
 
         // Step 5: Payment webhook arrives with success
-        $webhookResponse = $this->postJson('/api/payments/webhook', [
-            'order_reference' => $orderReference,
-            'status' => 'success',
-        ]);
+        $webhookResponse = $this->sendWebhook($orderReference, 'success');
 
         $webhookResponse->assertStatus(200)
             ->assertJson([
@@ -105,10 +116,7 @@ class OrderFlowIntegrationTest extends TestCase
         $this->assertEquals(4, $this->redisStockService->getStock($product->id));
 
         // Payment fails
-        $webhookResponse = $this->postJson('/api/payments/webhook', [
-            'order_reference' => $orderReference,
-            'status' => 'failure',
-        ]);
+        $webhookResponse = $this->sendWebhook($orderReference, 'failure');
 
         $webhookResponse->assertStatus(200);
 
@@ -157,10 +165,7 @@ class OrderFlowIntegrationTest extends TestCase
         $this->assertEquals(0, $this->redisStockService->getStock($product->id));
 
         // Now cancel one order
-        $this->postJson('/api/payments/webhook', [
-            'order_reference' => $successfulOrders[0],
-            'status' => 'failure',
-        ]);
+        $this->sendWebhook($successfulOrders[0], 'failure');
 
         // Stock should be restored
         $this->assertEquals(1, $this->redisStockService->getStock($product->id));

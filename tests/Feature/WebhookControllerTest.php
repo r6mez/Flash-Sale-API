@@ -20,12 +20,26 @@ class WebhookControllerTest extends TestCase
         parent::setUp();
         $this->redisStockService = app(RedisStockService::class);
         Redis::flushall();
+        config(['services.payment.secret' => 'test-secret']);
     }
 
     protected function tearDown(): void
     {
         Redis::flushall();
         parent::tearDown();
+    }
+
+    private function sendWebhook(string $orderReference, string $status)
+    {
+        $payload = [
+            'order_reference' => $orderReference,
+            'status' => $status,
+        ];
+        $signature = hash_hmac('sha256', json_encode($payload), config('services.payment.secret'));
+        
+        return $this->postJson('/api/payments/webhook', $payload, [
+            'X-Payment-Signature' => $signature
+        ]);
     }
 
     public function test_successful_payment_marks_order_as_paid(): void
@@ -46,10 +60,7 @@ class WebhookControllerTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $response = $this->postJson('/api/payments/webhook', [
-            'order_reference' => 'test-order-ref-123',
-            'status' => 'success',
-        ]);
+        $response = $this->sendWebhook('test-order-ref-123', 'success');
 
         $response->assertStatus(200)
             ->assertJson([
@@ -91,10 +102,7 @@ class WebhookControllerTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $response = $this->postJson('/api/payments/webhook', [
-            'order_reference' => 'test-order-ref-456',
-            'status' => 'failure',
-        ]);
+        $response = $this->sendWebhook('test-order-ref-456', 'failure');
 
         $response->assertStatus(200)
             ->assertJson([
@@ -111,10 +119,7 @@ class WebhookControllerTest extends TestCase
 
     public function test_webhook_for_nonexistent_order_is_recorded_for_later(): void
     {
-        $response = $this->postJson('/api/payments/webhook', [
-            'order_reference' => 'nonexistent-order-ref',
-            'status' => 'success',
-        ]);
+        $response = $this->sendWebhook('nonexistent-order-ref', 'success');
 
         $response->assertStatus(202)
             ->assertJson([
@@ -148,18 +153,12 @@ class WebhookControllerTest extends TestCase
         ]);
 
         // First webhook
-        $response1 = $this->postJson('/api/payments/webhook', [
-            'order_reference' => 'duplicate-test-ref',
-            'status' => 'success',
-        ]);
+        $response1 = $this->sendWebhook('duplicate-test-ref', 'success');
 
         $response1->assertStatus(200);
 
         // Second webhook (duplicate)
-        $response2 = $this->postJson('/api/payments/webhook', [
-            'order_reference' => 'duplicate-test-ref',
-            'status' => 'success',
-        ]);
+        $response2 = $this->sendWebhook('duplicate-test-ref', 'success');
 
         $response2->assertStatus(200)
             ->assertJson([
