@@ -109,6 +109,7 @@ Or by the shell script I wrote to simulate parallel requests for holds make sure
 php artisan migrate:rollback
 php artisan migrate
 php artisan db:seed
+php artisan app:sync-stock-to-redis
 ```
 
 then run the script:

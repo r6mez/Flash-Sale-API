@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\RedisStockService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class CancelUnpaidOrders extends Command
@@ -16,7 +17,7 @@ class CancelUnpaidOrders extends Command
     {
 
         $expiredOrders = \App\Models\Order::where('status', 'pending')
-            ->where('created_at', '<', now()->subMinutes(2))
+            ->where('created_at', '<', now()->subMinutes(1))
             ->get();
 
         foreach ($expiredOrders as $order) {
@@ -24,7 +25,7 @@ class CancelUnpaidOrders extends Command
                 $order->status = 'cancelled';
                 $order->save();
                 $redisStock->incrementStock($order->product_id, $order->qty);
-                $this->info("Cancelled order {$order->order_reference} and restored stock for product {$order->product_id}");
+                Log::info("Cancelled order {$order->order_reference} and restored stock for product {$order->product_id}");
             });
         }
     }

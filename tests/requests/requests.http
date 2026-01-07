@@ -1,20 +1,11 @@
+-- Active: 1758640196548@@127.0.0.1@5432@flash_sale_api
 @host = http://127.0.0.1:8000
 @contentType = application/json
 
 ### Get Product
+# @name getProduct
 GET {{host}}/api/products/1
 Accept: {{contentType}}
-
-### Create Hold
-# @name createHold
-POST {{host}}/api/holds
-Content-Type: {{contentType}}
-Accept: {{contentType}}
-
-{
-    "product_id": 1,
-    "qty": 1
-}
 
 ### Create Order
 # @name createOrder
@@ -23,7 +14,8 @@ Content-Type: {{contentType}}
 Accept: {{contentType}}
 
 {
-    "hold_id": {{createHold.response.body.data.hold_id}}
+    "product_id": "{{getProduct.response.body.id}}",
+    "qty": 10
 }
 
 ### Payment Webhook (Success)
@@ -32,8 +24,7 @@ Content-Type: {{contentType}}
 Accept: {{contentType}}
 
 {
-    "idempotency_key": "{{$guid}}",
-    "order_id": {{createOrder.response.body.data.id}},
+    "order_reference": "{{createOrder.response.body.order_reference}}",
     "status": "success"
 }
 
@@ -43,7 +34,6 @@ Content-Type: {{contentType}}
 Accept: {{contentType}}
 
 {
-    "idempotency_key": "{{$guid}}",
-    "order_id": {{createOrder.response.body.data.id}},
+    "order_reference": "{{createOrder.response.body.order_reference}}",
     "status": "failure"
 }

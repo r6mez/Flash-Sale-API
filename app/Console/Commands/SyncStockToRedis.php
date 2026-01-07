@@ -1,5 +1,13 @@
 <?php
 
+/** WARNING:
+ *  Do not run this command during a live sale. 
+ * 
+ * Since initializeStock overwrites the Redis stock with the DB stock 
+ * (which might be slightly outdated/higher due to async processing),
+ * running it while people are buying will reset the stock counter and cause overselling.
+ * **/
+
 namespace App\Console\Commands;
 
 use App\Models\Product;
@@ -15,7 +23,8 @@ class SyncStockToRedis extends Command
     {
         Product::chunk(100, function ($products) use ($redisStock) {
             foreach ($products as $product) {
-                $redisStock->initializeStock($product->id, $product->stock);
+                $redisStock->initializeStock($product);
+
                 $this->info("Synced product {$product->id}: {$product->stock}");
             }
         });

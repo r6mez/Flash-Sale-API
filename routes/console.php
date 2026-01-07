@@ -2,4 +2,4 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('orders:release')->everyTwoMinutes();
+Schedule::command('orders:release')->everyMinute();

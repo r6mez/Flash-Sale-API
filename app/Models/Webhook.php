@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Webhook extends Model
 {
     protected $fillable = [
-        'idempotency_key',
+        'order_reference',
         'payload',
         'attempts',
         'status',

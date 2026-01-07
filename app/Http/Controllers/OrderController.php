@@ -39,7 +39,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Reservation Successful! Order is being processed.',
-            'reference' => $reference
+            'order_reference' => $reference
         ], 202);
     }
 }

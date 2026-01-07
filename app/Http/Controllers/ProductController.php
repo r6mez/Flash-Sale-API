@@ -2,16 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use Illuminate\Support\Facades\Cache;
+use App\Services\RedisStockService;
 
 class ProductController extends Controller
 {
-    function show(int $id)
+    function show(int $id, RedisStockService $stockService)
     {
-        $product = Cache::remember("product:{$id}", 3600, function () use ($id) {
-            return Product::find($id);
-        });
+        $product = $stockService->getProduct($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product Not found'], 404);

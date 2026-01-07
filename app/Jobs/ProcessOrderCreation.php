@@ -41,7 +41,7 @@ class ProcessOrderCreation implements ShouldQueue
                 'status' => 'pending',
             ]);
 
-            Log::info("Order {$this->orderReference} created for product {$this->productId}, qty {$this->qty}");
+            Log::info("QUEUE: Order {$this->orderReference} created for product {$this->productId}, qty {$this->qty}");
 
             // Check for pending webhook that arrived early
             $webhook = Webhook::where('payload->order_reference', $this->orderReference)
@@ -54,11 +54,11 @@ class ProcessOrderCreation implements ShouldQueue
 
                 if ($paymentStatus === 'success') {
                     $order->update(['status' => 'paid']);
-                    Log::info("Order {$this->orderReference} immediately updated to paid from pending webhook");
+                    Log::info("QUEUE: Order {$this->orderReference} immediately updated to paid from pending webhook");
                 } else {
                     $order->update(['status' => 'cancelled']);
                     $redisStockService->incrementStock($this->productId, $this->qty);
-                    Log::info("Order {$this->orderReference} immediately cancelled from pending webhook and stock restored");
+                    Log::info("QUEUE: Order {$this->orderReference} immediately cancelled from pending webhook and stock restored");
                 }
 
                 $webhook->update(['status' => 'processed']);

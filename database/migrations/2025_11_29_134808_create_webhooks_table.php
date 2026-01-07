@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('webhooks', function (Blueprint $table) {
             $table->id();
-            $table->string('idempotency_key')->unique();
+            $table->string('order_reference')->unique();
             $table->json('payload');
             $table->unsignedInteger('attempts')->default(0);
             $table->enum('status', ['pending', 'processed', 'failed'])->default('pending');
