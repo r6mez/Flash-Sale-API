@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Hold;
 use App\Models\Product;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(Hold::class)->nullable();
+            $table->string("order_reference")->index();
             $table->foreignIdFor(Product::class);
             $table->unsignedInteger("qty");
             $table->unsignedInteger("amount_cents");

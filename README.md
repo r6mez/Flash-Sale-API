@@ -1,6 +1,5 @@
 # Flash-Sale Task
 
-
 ## Used
 PHP 8.5, Laravel 12, PostgreSQL for db, Redis for cache, PHPUnit for sequential testing testing + Shell Scripts for parallel testing.
 
@@ -9,8 +8,7 @@ PHP 8.5, Laravel 12, PostgreSQL for db, Redis for cache, PHPUnit for sequential 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/products/{id}` | Get product details |
-| `POST` | `/api/holds` | Create inventory hold |
-| `POST` | `/api/orders` | Convert hold to order |
+| `POST` | `/api/orders` | Make order request |
 | `POST` | `/api/payments/webhook` | Handle payment webhook |
 
 ## Assumptions and Invariants
