@@ -1,9 +1,10 @@
 #!/bin/bash
-# This script tests true concurrent access to the holds endpoint
+# This script tests true concurrent access to the orders endpoint
 # 
 # Prerequisites:
 #   1. Server running: php artisan serve
 #   2. Database seeded with a test product
+#   3. Product stock initialized in Redis
 #
 # Usage:
 #   ./tests/scripts/parallel_holds_test.sh [product_id] [stock] [requests] [sell_qty]
@@ -13,14 +14,15 @@ set -e
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 PRODUCT_ID="${1:-1}"
 STOCK="${2:-100}"
-NUM_REQUESTS="${3:-10}"
-SELL_QTY="${4:-50}"
+NUM_REQUESTS="${3:-20}"
+SELL_QTY="${4:-10}"
 
-echo "=== Parallel Holds Concurrency Test ==="
+echo "=== Parallel Orders Concurrency Test ==="
 echo "Base URL: $BASE_URL"
 echo "Product ID: $PRODUCT_ID"
 echo "Expected Stock: $STOCK"
 echo "Concurrent Requests: $NUM_REQUESTS"
+echo "Quantity per order: $SELL_QTY"
 echo ""
 
 # Temporary files for results
@@ -33,7 +35,7 @@ echo "Launching $NUM_REQUESTS concurrent requests..."
 for i in $(seq 1 $NUM_REQUESTS); do
     (
         STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "$BASE_URL/api/holds" \
+            -X POST "$BASE_URL/api/orders" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
             -d "{\"product_id\": $PRODUCT_ID, \"qty\": $SELL_QTY}")
@@ -54,15 +56,15 @@ OTHER_COUNT=0
 for i in $(seq 1 $NUM_REQUESTS); do
     STATUS=$(cat "$RESULT_DIR/result_$i.txt")
     case $STATUS in
-        201) SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) ;;
+        202) SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) ;;
         409) FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
         *) OTHER_COUNT=$((OTHER_COUNT + 1)); echo "  Request $i: unexpected status $STATUS" ;;
     esac
 done
 
 echo "=== Results ==="
-echo "Successful holds (201): $SUCCESS_COUNT"
-echo "Rejected - out of stock (409): $FAIL_COUNT"
+echo "Successful orders (202): $SUCCESS_COUNT"
+echo "Rejected - insufficient stock (409): $FAIL_COUNT"
 if [ $OTHER_COUNT -gt 0 ]; then
     echo "Other responses: $OTHER_COUNT"
 fi
@@ -71,7 +73,7 @@ echo ""
 # Verify results
 EXPECTED_SUCCESS=$((STOCK / SELL_QTY))
 EXPECTED_FAILS=$((NUM_REQUESTS - EXPECTED_SUCCESS))
-echo "   Expected $EXPECTED_STOCK successes, got $SUCCESS_COUNT"
+echo "   Expected $EXPECTED_SUCCESS successes, got $SUCCESS_COUNT"
 echo "   Expected $EXPECTED_FAILS failures, got $FAIL_COUNT"
 if [ $SUCCESS_COUNT -eq $EXPECTED_SUCCESS ] && [ $FAIL_COUNT -eq $EXPECTED_FAILS ]; then
     echo "TEST PASSED: No overselling detected!"
